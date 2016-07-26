@@ -47,6 +47,7 @@ Local $RRGValue
 
 Local $hwnd
 
+
 if not FileExists($filepath) Then
    MsgBox(0, "Room Correction Settings Manager", "Cannot locate "&$filepath&@CRLF&"Exiting")
    Exit
@@ -58,10 +59,9 @@ if not FileExists($optionsFile) Then
    If $myBox == 1 Then
 	  StoreSettings()
 	  MsgBox(0, "Room Correction Settings Manager", "Settings stored in "&$optionsFile&@CRLF&"Next time you run this program, it will automaticaly fill stored settings"&@CRLF&"You can edit settings file manually"&@CRLF&"You can delete the file to reset settings")
-   ElseIf $myBox == 2 Then
-	  ;Exit
+   Else
+	  Exit
    EndIf
-   Exit
 EndIf
 
 RunProgram()
@@ -75,7 +75,15 @@ MsgBox(0, "Room Correction Settings Manager", "Settings applied"&@CRLF&"Thank yo
 
 
 
-Func SetValue($valueControl, $controlsControl, $desiredValue)
+
+Func Increment($incrementControl, $times)
+   local $indentX = 0
+   local $indentY = $times > 0 ? 0 : 15
+   ControlClick($hwnd, "", $incrementControl, "primary", abs($times) * 2, $indentX, $indentY)
+   sleep(50)
+EndFunc
+
+Func SetValue($valueControl, $controlsControl, $desiredValue, $name)
    local $currentValue = GetNumValue($valueControl)
 
    ;skip if value is already set
@@ -90,6 +98,7 @@ Func SetValue($valueControl, $controlsControl, $desiredValue)
    $step = Round(Abs($currentValue - GetNumValue($valueControl)), 2)
    Increment($controlsControl, 1)
 
+   ;another algorithm if the value is maxed
    if $step == 0 Then
 	  Increment($controlsControl, 1)
 	  $step = Round(Abs($currentValue - GetNumValue($valueControl)), 2)
@@ -101,22 +110,22 @@ Func SetValue($valueControl, $controlsControl, $desiredValue)
    local $steps = $resultValue / $step
 
    ;increment
-   PrintMany($desiredValue, $currentValue, $resultValue, $steps)
+   PrintMany($name, $desiredValue, $currentValue, $step, $resultValue, $steps)
    Increment($controlsControl, $steps)
 EndFunc
 
 Func FillValues()
-   SetValue($FLVal	,	$FL		,	$FLValue	)
-   SetValue($FLGVal	,	$FLG	,	$FLGValue	)
-   SetValue($FRVal	,	$FR		,	$FRValue	)
-   SetValue($FRGVal	,	$FRG	,	$FRGValue	)
-   SetValue($CEVal	, 	$CE		,	$CEValue	)
-   SetValue($CEGVal	,	$CEG	,	$CEGValue	)
-   SetValue($SWGVal	,	$SWG	,	$SWGValue	)
-   SetValue($RLVal	, 	$RL		,	$RLValue	)
-   SetValue($RLGVal	,	$RLG	,	$RLGValue	)
-   SetValue($RRVal	, 	$RR		,	$RRValue	)
-   SetValue($RRGVal	,	$RRG	,	$RRGValue	)
+   SetValue($FLVal	,	$FL		,	$FLValue	, "FL"	)
+   SetValue($FLGVal	,	$FLG	,	$FLGValue	, "FLG"	)
+   SetValue($FRVal	,	$FR		,	$FRValue	, "FR"	)
+   SetValue($FRGVal	,	$FRG	,	$FRGValue	, "FRG"	)
+   SetValue($CEVal	, 	$CE		,	$CEValue	, "CE"	)
+   SetValue($CEGVal	,	$CEG	,	$CEGValue	, "CEG"	)
+   SetValue($SWGVal	,	$SWG	,	$SWGValue	, "SWG"	)
+   SetValue($RLVal	, 	$RL		,	$RLValue	, "RL"	)
+   SetValue($RLGVal	,	$RLG	,	$RLGValue	, "RLG"	)
+   SetValue($RRVal	, 	$RR		,	$RRValue	, "RR"	)
+   SetValue($RRGVal	,	$RRG	,	$RRGValue	, "RRG"	)
 EndFunc
 
 Func RunProgram()
@@ -160,73 +169,32 @@ Func ReadSettings()
    $RRGValue	= IniRead($optionsFile	,	"RoomCorrection"	,	"RearRightGain"		,	GetNumValue($RRGVal	))
 EndFunc
 
-Func CheckRoomCorrectionVisible()
-   sleep(150)
-   local $tmp = ControlCommand($hwnd, $roomCorrectionText, $roomCorrectionSwitchControl, "IsVisible")
-   local $output = False
-   if $tmp = 1 Then
-	  $output = True
-   EndIf
-   return $output
-EndFunc
-
 Func SwitchRoomCorrection($switch = 1)
-   if not CheckRoomCorrectionVisible() Then
-	  return False
+   sleep(150)
+   ;CheckRoomCorrectionVisible
+   if not ControlCommand($hwnd, $roomCorrectionText, $roomCorrectionSwitchControl, "IsVisible") == 1 Then
+	  MsgBox(0, "Room Correction Settings Manager", "Couldn't switch Room Correction. Please enable it manually and try again")
+	  Exit
    EndIf
 
    if ( $switch = 1 and not CheckRoomCorrectionActive() ) or ( $switch = 0 and CheckRoomCorrectionActive() ) then
-	  PressRoomCorrectionSwitch()
-	  return True
+	  ControlCommand($hwnd, $roomCorrectionText, $roomCorrectionSwitchControl, "Check")
+	  ControlCommand($hwnd, $roomCorrectionText, $meterButtonControl, "Check")
    EndIf
-   return False
-EndFunc
-
-Func PressRoomCorrectionSwitch()
-   ControlCommand($hwnd, $roomCorrectionText, $roomCorrectionSwitchControl, "Check")
-   ControlCommand($hwnd, $roomCorrectionText, $meterButtonControl, "Check")
 EndFunc
 
 Func CheckRoomCorrectionActive()
-   local $tmp = ControlCommand($hwnd, "", $meterButtonControl, "IsEnabled")
-   local $output = False
-   if $tmp = 1 Then
-	  $output = True
-   EndIf
-   return $output
-EndFunc
-
-Func GetIncDecCoords($control) ;[0] = incX, [1] = incY, [2] = decX, [3] = decY
-   local $incrementPos = ControlGetPos($hwnd, "", $control)
-   Local $decrementPos[2] = [$incrementPos[0], $incrementPos[1] + 15]
-   local $output[4] = [$incrementPos[0]+3, $incrementPos[1], $decrementPos[0]+3, $decrementPos[1]]
-   return $output
+   return (ControlCommand($hwnd, "", $meterButtonControl, "IsEnabled") == 1)
 EndFunc
 
 Func GetNumValue($control)
    return Number(ControlGetText($hwnd, "", $control))
 EndFunc
 
-Func Increment($control, $times)
-   local $incDecCoords = GetIncDecCoords($control)
-   Local $resultCoords[2]
-   if $times > 0 Then
-	  $resultCoords[0] = $incDecCoords[0]
-	  $resultCoords[1] = $incDecCoords[1]
-   Else
-	  $resultCoords[0] = $incDecCoords[2]
-	  $resultCoords[1] = $incDecCoords[3]
-   EndIf
-   Click($resultCoords[0], $resultCoords[1], Abs($times))
-   sleep(10)
-EndFunc
 
-Func Click($x, $y, $times)
-   ;Print("Clicking " & $times & " time(s)")
-   MouseMove($x, $y, 0)
-   sleep(10)
-   MouseClick("primary", $x, $y, $times, 0)
-EndFunc
+
+
+
 
 Func Print($string)
    ConsoleWrite($string&@CRLF)
