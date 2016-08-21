@@ -3,11 +3,10 @@ Opt("MouseCoordMode", 2) ;1=absolute, 0=relative, 2=client
 $optionsFile 					= "RoomCorrection.ini"
 $filepath 						= EnvGet("ProgramW6432")&"\Realtek\Audio\HDA\RtkNGUI64.exe"
 $title 							= "Realtek HD Audio Manager"
-$roomCorrectionText				= "Enable Room Correction"
-$speakerConfigurationControl 	= "[CLASS:SysTabControl32; INSTANCE:2]"
-$roomCorrectionControl 			= "[CLASS:#32770; INSTANCE:7]"
-$roomCorrectionSwitchControl 	= "[CLASS:Button; INSTANCE:33]"
-$meterButtonControl				= "[CLASS:Button; INSTANCE:31]"
+$speakerConfigurationControl 	= "[CLASS:SysTabControl32; INSTANCE:1]"
+$roomCorrectionControl 			= "[CLASS:#32770; INSTANCE:18]"
+$roomCorrectionSwitchControl 	= "[CLASS:Button; INSTANCE:41]"
+$meterButtonControl				= "[CLASS:Button; INSTANCE:39]"
 
 Const $FL	= "[CLASS:msctls_updown32; INSTANCE:1]"
 Const $FLG	= "[CLASS:msctls_updown32; INSTANCE:2]"
@@ -21,17 +20,17 @@ Const $RLG	= "[CLASS:msctls_updown32; INSTANCE:8]"
 Const $RR	= "[CLASS:msctls_updown32; INSTANCE:14]"
 Const $RRG	= "[CLASS:msctls_updown32; INSTANCE:15]"
 
-Const $FLVal	= "[CLASS:Static; INSTANCE:8]"
-Const $FLGVal	= "[CLASS:Static; INSTANCE:9]"
-Const $FRVal	= "[CLASS:Static; INSTANCE:16]"
-Const $FRGVal	= "[CLASS:Static; INSTANCE:17]"
-Const $CEVal	= "[CLASS:Static; INSTANCE:10]"
-Const $CEGVal	= "[CLASS:Static; INSTANCE:11]]"
-Const $SWGVal	= "[CLASS:Static; INSTANCE:18]"
-Const $RLVal	= "[CLASS:Static; INSTANCE:14]"
-Const $RLGVal	= "[CLASS:Static; INSTANCE:15]"
-Const $RRVal	= "[CLASS:Static; INSTANCE:21]"
-Const $RRGVal	= "[CLASS:Static; INSTANCE:22]"
+Const $FLVal	= "[CLASS:Static; INSTANCE:20]"
+Const $FLGVal	= "[CLASS:Static; INSTANCE:21]"
+Const $FRVal	= "[CLASS:Static; INSTANCE:28]"
+Const $FRGVal	= "[CLASS:Static; INSTANCE:29]"
+Const $CEVal	= "[CLASS:Static; INSTANCE:22]"
+Const $CEGVal	= "[CLASS:Static; INSTANCE:23]"
+Const $SWGVal	= "[CLASS:Static; INSTANCE:30]"
+Const $RLVal	= "[CLASS:Static; INSTANCE:26]"
+Const $RLGVal	= "[CLASS:Static; INSTANCE:27]"
+Const $RRVal	= "[CLASS:Static; INSTANCE:33]"
+Const $RRGVal	= "[CLASS:Static; INSTANCE:34]"
 
 Local $FLValue
 Local $FLGValue
@@ -46,7 +45,6 @@ Local $RRValue
 Local $RRGValue
 
 Local $hwnd
-
 
 if not FileExists($filepath) Then
    MsgBox(0, "Room Correction Settings Manager", "Cannot locate "&$filepath&@CRLF&"Exiting")
@@ -67,9 +65,9 @@ EndIf
 RunProgram()
 ReadSettings()
 
-for $i = 1 to 2
+for $i = 1 to 3
    FillValues()
-   sleep(1000)
+   sleep(250)
 Next
 MsgBox(0, "Room Correction Settings Manager", "Settings applied"&@CRLF&"Thank you for using Room Correction Settings Manager")
 
@@ -77,8 +75,9 @@ MsgBox(0, "Room Correction Settings Manager", "Settings applied"&@CRLF&"Thank yo
 
 
 Func Increment($incrementControl, $times)
-   local $indentX = 0
-   local $indentY = $times > 0 ? 0 : 15
+   local $indentX = $times > 0 ? 45 : 15 ;button position offset. client coords
+   local $indentY = 15
+   ;Print("times: " & $times & " : " & $indentX & " " & $indentY)
    ControlClick($hwnd, "", $incrementControl, "primary", abs($times) * 2, $indentX, $indentY)
    sleep(50)
 EndFunc
@@ -107,7 +106,7 @@ Func SetValue($valueControl, $controlsControl, $desiredValue, $name)
 
    ;get increment steps
    local $resultValue = $desiredValue - $currentValue
-   local $steps = $resultValue / $step
+   local $steps = Round($resultValue / $step, 0)
 
    ;increment
    PrintMany($name, $desiredValue, $currentValue, $step, $resultValue, $steps)
@@ -137,7 +136,14 @@ Func RunProgram()
    $hwnd = WinWait($title)
    WinActivate($hwnd)
    WinWaitActive($hwnd)
-   ControlCommand($hwnd, "", $speakerConfigurationControl, "TabRight")
+
+   For $i = 1 to 5
+	  ControlCommand($hwnd, "", $speakerConfigurationControl, "TabRight")
+  	  sleep(200)
+	  if CheckRoomCorrectionTabActive() Then
+		 ExitLoop
+	  EndIf
+   Next
    SwitchRoomCorrection(1)
 EndFunc
 
@@ -172,15 +178,23 @@ EndFunc
 Func SwitchRoomCorrection($switch = 1)
    sleep(150)
    ;CheckRoomCorrectionVisible
-   if not ControlCommand($hwnd, $roomCorrectionText, $roomCorrectionSwitchControl, "IsVisible") == 1 Then
+   if not CheckRoomCorrectionSwitchVisible() Then
 	  MsgBox(0, "Room Correction Settings Manager", "Couldn't switch Room Correction. Please enable it manually and try again")
 	  Exit
    EndIf
 
    if ( $switch = 1 and not CheckRoomCorrectionActive() ) or ( $switch = 0 and CheckRoomCorrectionActive() ) then
-	  ControlCommand($hwnd, $roomCorrectionText, $roomCorrectionSwitchControl, "Check")
-	  ControlCommand($hwnd, $roomCorrectionText, $meterButtonControl, "Check")
+	  ControlCommand($hwnd, "", $roomCorrectionSwitchControl, "Check")
+	  ControlCommand($hwnd, "", $meterButtonControl, "Check")
    EndIf
+EndFunc
+
+Func CheckRoomCorrectionTabActive()
+   return (ControlCommand($hwnd, "", $roomCorrectionControl, "IsVisible") == 1)
+EndFunc
+
+Func CheckRoomCorrectionSwitchVisible()
+   return (ControlCommand($hwnd, "", $roomCorrectionSwitchControl, "IsVisible") == 1)
 EndFunc
 
 Func CheckRoomCorrectionActive()
